@@ -58,19 +58,21 @@ local function TeleportTree(part, finalPos)
     if not part or not part:IsA("BasePart") then return end
     
     pcall(function()
+        -- Ensure the part isn't physically anchored by standard property flags
+        part.Anchored = false
+        
+        -- Zero out any backlogged structural forces
         part.AssemblyLinearVelocity = Vector3.zero
         part.AssemblyAngularVelocity = Vector3.zero
         
-        local start = tick()
-        while tick() - start < 0.5 do 
-            part.Velocity = Vector3.zero
-            part.RotVelocity = Vector3.zero
-            part.AssemblyLinearVelocity = Vector3.zero
-            part.AssemblyAngularVelocity = Vector3.zero
-            
-            part.CFrame = CFrame.new(finalPos + Vector3.new(0, 5, 0))
-            RunService.Heartbeat:Wait()
-        end
+        -- Perform a single smooth, unanchored translation frame rather than a continuous frame freeze.
+        -- This changes the coordinates instantly but releases physics ownership back to the server immediately
+        -- so the game's selling drop pads can detect and pull the item.
+        part.CFrame = CFrame.new(finalPos + Vector3.new(0, 3, 0))
+        
+        -- Brief physics push downward to stimulate touch triggers on the sell floor
+        task.wait(0.01)
+        part.AssemblyLinearVelocity = Vector3.new(0, -10, 0)
     end)
 end
 
@@ -271,7 +273,6 @@ MakeFrameDraggable(FloatingBall, FloatingBall)
 MinimizeBtn.MouseButton1Click:Connect(function()
     local currentPos = MainFrame.AbsolutePosition
     MainFrame.Visible = false
-    -- Center the ball relative to where the frame was
     FloatingBall.Position = UDim2.new(0, currentPos.X + 225, 0, currentPos.Y + 135)
     FloatingBall.Visible = true
 end)
@@ -279,7 +280,6 @@ end)
 FloatingBall.MouseButton1Click:Connect(function()
     local ballPos = FloatingBall.AbsolutePosition
     FloatingBall.Visible = false
-    -- Restore the frame position based on the ball's location
     MainFrame.Position = UDim2.new(0, ballPos.X - 225, 0, ballPos.Y - 135)
     MainFrame.Visible = true
 end)
