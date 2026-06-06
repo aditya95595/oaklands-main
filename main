@@ -82,7 +82,6 @@ ScreenGui.Name = "OaklandsHelperV6"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
--- Protect GUI from detection tools if executor supports it
 if syn and syn.protect_gui then syn.protect_gui(ScreenGui) end
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
@@ -100,7 +99,7 @@ local MainCorner = Instance.new("UICorner")
 MainCorner.CornerRadius = UDim.new(0, 8)
 MainCorner.Parent = MainFrame
 
--- Top Window Header Bar (Drag Handler Area)
+-- Top Window Header Bar (Drag Area)
 local TopBar = Instance.new("Frame")
 TopBar.Name = "TopBar"
 TopBar.Size = UDim2.new(1, 0, 0, 40)
@@ -123,7 +122,7 @@ Title.Font = Enum.Font.SourceSansBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = TopBar
 
--- Window Controls (Minimize / Collapse)
+-- Window Minimize/Collapse Button
 local MinimizeBtn = Instance.new("TextButton")
 MinimizeBtn.Size = UDim2.new(0, 30, 0, 30)
 MinimizeBtn.Position = UDim2.new(1, -40, 0, 5)
@@ -134,7 +133,7 @@ MinimizeBtn.TextSize = 24
 MinimizeBtn.Font = Enum.Font.SourceSansBold
 MinimizeBtn.Parent = TopBar
 
--- Sidebar Navigation container
+-- Sidebar Navigation Container
 local Sidebar = Instance.new("Frame")
 Sidebar.Name = "Sidebar"
 Sidebar.Size = UDim2.new(0, 130, 1, -40)
@@ -150,7 +149,7 @@ SidebarLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 SidebarLayout.SortOrder = Enum.SortOrder.LayoutOrder
 SidebarLayout.Parent = Sidebar
 
--- Content Display Layout Panes
+-- Content Container Frame
 local ContentArea = Instance.new("Frame")
 ContentArea.Name = "ContentArea"
 ContentArea.Size = UDim2.new(1, -130, 1, -40)
@@ -180,7 +179,7 @@ local KeyNote = Instance.new("TextLabel")
 KeyNote.Size = UDim2.new(1, 0, 0, 40)
 KeyNote.Position = UDim2.new(0, 0, 0, 50)
 KeyNote.BackgroundTransparency = 1
-KeyNote.Text = "Key valid for 6 hours.\nClick 'Get Key' to copy the official link! 👇"
+KeyNote.Text = "Key valid for 6 hours.\nClick 'Get Key' to copy the verification link! 👇"
 KeyNote.TextColor3 = Color3.fromRGB(180, 180, 180)
 KeyNote.TextSize = 14
 KeyNote.Font = Enum.Font.SourceSans
@@ -222,21 +221,22 @@ SubmitBtn.Parent = KeyPage
 local SBCorner = Instance.new("UICorner") SBCorner.CornerRadius = UDim.new(0,4) SBCorner.Parent = SubmitBtn
 
 local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(1, 0, 0, 25)
+StatusLabel.Size = UDim2.new(1, 0, 0, 35)
 StatusLabel.Position = UDim2.new(0, 0, 0, 210)
 StatusLabel.BackgroundTransparency = 1
 StatusLabel.Text = ""
 StatusLabel.TextSize = 14
 StatusLabel.Font = Enum.Font.SourceSansBold
+StatusLabel.TextWrapped = true
 StatusLabel.Parent = KeyPage
 
 GetKeyBtn.MouseButton1Click:Connect(function()
     setclipboard("https://pandadevelopment.net/getkey?service=17cc8434-693e-467d-9a36-195a984ad0ef")
     StatusLabel.TextColor3 = Color3.fromRGB(76, 175, 80)
-    StatusLabel.Text = "Panda verification URL link copied directly to clipboard!"
+    StatusLabel.Text = "Panda URL copied to clipboard! Paste it into your browser."
 end)
 
--- ==================== DRAGGABLE LOGIC FUNCTION ====================
+-- ==================== DRAGGABLE WINDOW LOGIC ====================
 local function MakeDraggable(dragFrame, dragHandle)
     local dragging, dragInput, dragStart, startPos
     dragHandle.InputBegan:Connect(function(input)
@@ -270,18 +270,16 @@ MinimizeBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
     if isMinimized then
         normalSize = MainFrame.Size
-        TweenService:Create(MainFrame, TweenInfo.new(0.25), {Size = UDim2.new(0, 500, 0, 40)}):Play()
+        TweenService:Create(MainFrame, TweenInfo.new(0.2), {Size = UDim2.new(0, 500, 0, 40)}):Play()
         MinimizeBtn.Text = "+"
     else
-        TweenService:Create(MainFrame, TweenInfo.new(0.25), {Size = normalSize}):Play()
+        TweenService:Create(MainFrame, TweenInfo.new(0.2), {Size = normalSize}):Play()
         MinimizeBtn.Text = "−"
     end
 end)
 
 -- ==================== DYNAMIC TAB CONFIGURATION ====================
 local tabs = {}
-local currentTab = nil
-
 local function CreateTab(name)
     local page = Instance.new("ScrollingFrame")
     page.Size = UDim2.new(1, -20, 1, -20)
@@ -324,7 +322,7 @@ local function CreateTab(name)
     return page
 end
 
--- UI Control Utilities
+-- UI Component Helper Methods
 local function AddSection(tabName, title)
     local lbl = Instance.new("TextLabel")
     lbl.Size = UDim2.new(1, 0, 0, 25)
@@ -401,8 +399,6 @@ AddButton("Farm", "🎯 Save Current Position as Sell Point", function()
     elseif LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then
         targetTreePos = LocalPlayer.Character.PrimaryPart.Position
     end
-    StatusLabel.TextColor3 = Color3.fromRGB(255, 235, 59)
-    StatusLabel.Text = "Sell point position registered successfully!"
 end)
 
 -- Setup Teleport Panel Controls
@@ -451,25 +447,47 @@ AddSection("Settings", "Settings")
 AddToggle("Settings", "F Key Click Teleport", clickTeleportPlayer, function(v) clickTeleportPlayer = v end)
 AddToggle("Settings", "Freecam (WASD + QE)", freecamActive, function(v) ToggleFreecam() end)
 
--- ==================== AUTH UNLOCK ACTION LOGIC ====================
+-- ==================== AUTH UNLOCK SECURITY ACTION ====================
 SubmitBtn.MouseButton1Click:Connect(function()
     local enteredKey = KeyBox.Text
-    -- Accept "test" or empty field bypassed testing parameters
-    if enteredKey == "test" or enteredKey ~= "" then
+    
+    if enteredKey == "" then
+        StatusLabel.TextColor3 = Color3.fromRGB(244, 67, 54)
+        StatusLabel.Text = "Please enter a key first!"
+        return
+    end
+
+    StatusLabel.TextColor3 = Color3.fromRGB(255, 235, 59)
+    StatusLabel.Text = "Verifying key with Panda Servers... Please wait."
+    
+    -- Request key verification matching the player Client ID fingerprint
+    local hwid = game:GetService("RbxAnalyticsService"):GetClientId()
+    local serviceID = "17cc8434-693e-467d-9a36-195a984ad0ef"
+    local checkURL = string.format(
+        "https://pandadevelopment.net/v2/validate?service=%s&hwid=%s&key=%s",
+        serviceID,
+        hwid,
+        enteredKey
+    )
+    
+    local success, response = pcall(function()
+        return game:HttpGet(checkURL)
+    end)
+    
+    if success and (response:find("success") or response:find("true") or response:find("Valid Key")) then
         StatusLabel.TextColor3 = Color3.fromRGB(76, 175, 80)
-        StatusLabel.Text = "Access granted! Accessing system dashboard..."
-        task.wait(1)
+        StatusLabel.Text = "Access granted! Loading dashboard..."
+        task.wait(0.8)
         
-        -- Transition Page UI States
+        -- Transition out the Key view and open cheat pages
         KeyPage.Visible = false
         Sidebar.Visible = true
         ContentArea.Visible = true
         tabs["Farm"].page.Visible = true
         tabs["Farm"].button.BackgroundColor3 = Color3.fromRGB(46, 125, 50)
-        StatusLabel.Text = ""
     else
         StatusLabel.TextColor3 = Color3.fromRGB(244, 67, 54)
-        StatusLabel.Text = "Authentication Key invalid or expired."
+        StatusLabel.Text = "Authentication Key invalid or expired!"
     end
 end)
 
