@@ -76,6 +76,9 @@ local function TeleportTree(part, finalPos)
     end)
 end
 
+-- ==================== CONFIGURABLE MANUAL KEY ====================
+local CUSTOM_PASS_KEY = "OaklandsV6" -- ← Change your custom key here
+
 -- ==================== CUSTOM UI BUILDER ====================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "OaklandsHelperV6"
@@ -167,9 +170,9 @@ KeyPage.Parent = MainFrame
 
 local KeyTitle = Instance.new("TextLabel")
 KeyTitle.Size = UDim2.new(1, 0, 0, 30)
-KeyTitle.Position = UDim2.new(0, 0, 0, 20)
+KeyTitle.Position = UDim2.new(0, 0, 0, 25)
 KeyTitle.BackgroundTransparency = 1
-KeyTitle.Text = "Panda Authentication System"
+KeyTitle.Text = "Manual Key Verification"
 KeyTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
 KeyTitle.TextSize = 20
 KeyTitle.Font = Enum.Font.SourceSansBold
@@ -177,20 +180,21 @@ KeyTitle.Parent = KeyPage
 
 local KeyNote = Instance.new("TextLabel")
 KeyNote.Size = UDim2.new(1, 0, 0, 40)
-KeyNote.Position = UDim2.new(0, 0, 0, 50)
+KeyNote.Position = UDim2.new(0, 0, 0, 60)
 KeyNote.BackgroundTransparency = 1
-KeyNote.Text = "Key valid for 6 hours.\nClick 'Get Key' to copy the verification link! 👇"
+KeyNote.Text = "Enter the custom script password below to access the layout tools."
 KeyNote.TextColor3 = Color3.fromRGB(180, 180, 180)
 KeyNote.TextSize = 14
 KeyNote.Font = Enum.Font.SourceSans
+KeyNote.TextWrapped = true
 KeyNote.Parent = KeyPage
 
 local KeyBox = Instance.new("TextBox")
 KeyBox.Size = UDim2.new(0, 300, 0, 35)
-KeyBox.Position = UDim2.new(0.5, -150, 0, 110)
+KeyBox.Position = UDim2.new(0.5, -150, 0, 120)
 KeyBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 KeyBox.Text = ""
-KeyBox.PlaceholderText = "Enter key here..."
+KeyBox.PlaceholderText = "Enter key code..."
 KeyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 KeyBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 120)
 KeyBox.TextSize = 16
@@ -198,22 +202,11 @@ KeyBox.Font = Enum.Font.SourceSans
 KeyBox.Parent = KeyPage
 local KBBoxCorner = Instance.new("UICorner") KBBoxCorner.CornerRadius = UDim.new(0,4) KBBoxCorner.Parent = KeyBox
 
-local GetKeyBtn = Instance.new("TextButton")
-GetKeyBtn.Size = UDim2.new(0, 140, 0, 35)
-GetKeyBtn.Position = UDim2.new(0.5, -150, 0, 160)
-GetKeyBtn.BackgroundColor3 = Color3.fromRGB(46, 125, 50)
-GetKeyBtn.Text = "🔑 Get Key"
-GetKeyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-GetKeyBtn.TextSize = 16
-GetKeyBtn.Font = Enum.Font.SourceSansBold
-GetKeyBtn.Parent = KeyPage
-local GKCorner = Instance.new("UICorner") GKCorner.CornerRadius = UDim.new(0,4) GKCorner.Parent = GetKeyBtn
-
 local SubmitBtn = Instance.new("TextButton")
-SubmitBtn.Size = UDim2.new(0, 140, 0, 35)
-SubmitBtn.Position = UDim2.new(0.5, 10, 0, 160)
+SubmitBtn.Size = UDim2.new(0, 200, 0, 35)
+SubmitBtn.Position = UDim2.new(0.5, -100, 0, 175)
 SubmitBtn.BackgroundColor3 = Color3.fromRGB(21, 101, 192)
-SubmitBtn.Text = "Check Key"
+SubmitBtn.Text = "Unlock Script"
 SubmitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 SubmitBtn.TextSize = 16
 SubmitBtn.Font = Enum.Font.SourceSansBold
@@ -222,19 +215,13 @@ local SBCorner = Instance.new("UICorner") SBCorner.CornerRadius = UDim.new(0,4) 
 
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(1, 0, 0, 35)
-StatusLabel.Position = UDim2.new(0, 0, 0, 210)
+StatusLabel.Position = UDim2.new(0, 0, 0, 225)
 StatusLabel.BackgroundTransparency = 1
 StatusLabel.Text = ""
 StatusLabel.TextSize = 14
 StatusLabel.Font = Enum.Font.SourceSansBold
 StatusLabel.TextWrapped = true
 StatusLabel.Parent = KeyPage
-
-GetKeyBtn.MouseButton1Click:Connect(function()
-    setclipboard("https://pandadevelopment.net/getkey?service=17cc8434-693e-467d-9a36-195a984ad0ef")
-    StatusLabel.TextColor3 = Color3.fromRGB(76, 175, 80)
-    StatusLabel.Text = "Panda URL copied to clipboard! Paste it into your browser."
-end)
 
 -- ==================== DRAGGABLE WINDOW LOGIC ====================
 local function MakeDraggable(dragFrame, dragHandle)
@@ -447,39 +434,16 @@ AddSection("Settings", "Settings")
 AddToggle("Settings", "F Key Click Teleport", clickTeleportPlayer, function(v) clickTeleportPlayer = v end)
 AddToggle("Settings", "Freecam (WASD + QE)", freecamActive, function(v) ToggleFreecam() end)
 
--- ==================== AUTH UNLOCK SECURITY ACTION ====================
+-- ==================== MANUAL UNLOCK LOGIC ====================
 SubmitBtn.MouseButton1Click:Connect(function()
     local enteredKey = KeyBox.Text
     
-    if enteredKey == "" then
-        StatusLabel.TextColor3 = Color3.fromRGB(244, 67, 54)
-        StatusLabel.Text = "Please enter a key first!"
-        return
-    end
-
-    StatusLabel.TextColor3 = Color3.fromRGB(255, 235, 59)
-    StatusLabel.Text = "Verifying key with Panda Servers... Please wait."
-    
-    -- Request key verification matching the player Client ID fingerprint
-    local hwid = game:GetService("RbxAnalyticsService"):GetClientId()
-    local serviceID = "17cc8434-693e-467d-9a36-195a984ad0ef"
-    local checkURL = string.format(
-        "https://pandadevelopment.net/v2/validate?service=%s&hwid=%s&key=%s",
-        serviceID,
-        hwid,
-        enteredKey
-    )
-    
-    local success, response = pcall(function()
-        return game:HttpGet(checkURL)
-    end)
-    
-    if success and (response:find("success") or response:find("true") or response:find("Valid Key")) then
+    if enteredKey == CUSTOM_PASS_KEY then
         StatusLabel.TextColor3 = Color3.fromRGB(76, 175, 80)
         StatusLabel.Text = "Access granted! Loading dashboard..."
-        task.wait(0.8)
+        task.wait(0.6)
         
-        -- Transition out the Key view and open cheat pages
+        -- Hide key input view and reveal functional categories
         KeyPage.Visible = false
         Sidebar.Visible = true
         ContentArea.Visible = true
@@ -487,7 +451,7 @@ SubmitBtn.MouseButton1Click:Connect(function()
         tabs["Farm"].button.BackgroundColor3 = Color3.fromRGB(46, 125, 50)
     else
         StatusLabel.TextColor3 = Color3.fromRGB(244, 67, 54)
-        StatusLabel.Text = "Authentication Key invalid or expired!"
+        StatusLabel.Text = "Incorrect code validation. Please try again."
     end
 end)
 
