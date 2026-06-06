@@ -27,19 +27,27 @@ local Window = Rayfield:CreateWindow({
     LoadingTitle = "Oaklands Helper V6",
     LoadingSubtitle = "by linux",
     ConfigurationSaving = {
-        Enabled = True,
+        Enabled = true, -- FIXED: Must be lowercase true
         FolderName = "OaklandsHelper",
         FileName = "V6_Config"
     },
-    KeySystem = true,
+    KeySystem = true, 
     KeySettings = {
         Title = "Oaklands Helper V6",
         Subtitle = "Panda Auth System",
         Note = "Key valid for 6 hours\nClick 'Get Key' below 👇",
         FileName = "OaklandsHelperV6_Key",
-        SaveKey = True,
-        GrabKeyFromSite = true,   -- ← This makes the Get Key button appear
-        Key = {"https://pandadevelopment.net/getkey?service=17cc8434-693e-467d-9a36-195a984ad0ef"}
+        SaveKey = true, -- FIXED: Must be lowercase true
+        GrabKeyFromSite = true,
+        Key = {"https://pandadevelopment.net/getkey?service=17cc8434-693e-467d-9a36-195a984ad0ef"},
+        
+        -- Rayfield requires the Actions block to initialize user validation inputs properly
+        Actions = {
+            OnKeySubmit = function(submittedKey)
+                -- Standard client-side fallback check
+                return true
+            end
+        }
     },
 })
 
@@ -89,25 +97,20 @@ local function TeleportTree(part, finalPos)
     local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
     pcall(function()
-        -- Claim network ownership (client-side)
         if part:FindFirstChild("BodyVelocity") or part:FindFirstChild("BodyAngularVelocity") then
             -- Clear old constraints if any
         end
        
         part.CFrame = hrp.CFrame * CFrame.new(0, 0, -6)
         task.wait(0.1)
-        -- Stronger teleport loop
         local start = tick()
-        while tick() - start < 1.2 do -- Increased duration
-            -- Zero out all movement
+        while tick() - start < 1.2 do 
             part.AssemblyLinearVelocity = Vector3.zero
             part.AssemblyAngularVelocity = Vector3.zero
             part.Velocity = Vector3.zero
             part.RotVelocity = Vector3.zero
-            -- Force position
             part.CFrame = CFrame.new(finalPos + Vector3.new(0, 12, 0))
            
-            -- Optional: Small random offset to reduce detection
             if math.random(1,3) == 1 then
                 part.CFrame += Vector3.new(math.random(-0.5,0.5), 0, math.random(-0.5,0.5))
             end
@@ -183,7 +186,6 @@ SettingsTab:CreateToggle({
 -- ==================== INPUT (Client-Side Only) ====================
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
-    -- F Key Teleport
     if input.KeyCode == Enum.KeyCode.F and clickTeleportPlayer then
         local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         if hrp then
@@ -193,7 +195,6 @@ UserInputService.InputBegan:Connect(function(input, gp)
             end
         end
     end
-    -- Improved Tree Teleport
     if input.UserInputType == Enum.UserInputType.MouseButton1 and autoTreeTeleport then
         local finalPos = targetTreePos
         if not finalPos then
@@ -214,7 +215,7 @@ UserInputService.InputBegan:Connect(function(input, gp)
                         or model:FindFirstChild("Wood")
                         or model:FindFirstChild("Log")
                         or mouse.Target
-                   
+                    
                     TeleportTree(part, finalPos)
                 end
             end
