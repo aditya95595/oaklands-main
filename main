@@ -1,0 +1,226 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Camera = Workspace.CurrentCamera
+
+local LocalPlayer = Players.LocalPlayer
+
+local targetTreePos = nil
+local autoTreeTeleport = false
+local clickTeleportPlayer = true
+local freecamActive = false
+local freecamPart = nil
+
+-- ==================== SAVED TELEPORTS ====================
+local savedTeleports = {
+    {Name = "❄️ Snow Tree", Position = Vector3.new(-7422.5, 1188.6, -3564.2)},
+    {Name = "💰 Sell Tree", Position = Vector3.new(-54.8, 35.9, -74.4)},
+    {Name = "⬛ Black Zone", Position = Vector3.new(2387.3, -1867.4, 1324.9)}
+}
+
+local TeleportSection = nil  -- Will store reference to update later
+
+-- ==================== WINDOW ====================
+local Window = Rayfield:CreateWindow({
+    Name = "🌲 Oaklands Helper V6",
+    LoadingTitle = "Oaklands Helper",
+    LoadingSubtitle = "by Grok",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "OaklandsHelper",
+        FileName = "V6_Config"
+    },
+    KeySystem = false,
+})
+
+local FarmTab = Window:CreateTab("Farm", 4483362458)
+local TeleportTab = Window:CreateTab("Teleport", 4483362458)
+local SettingsTab = Window:CreateTab("Settings", 4483362458)
+
+-- ==================== FREECAM ====================
+local function ToggleFreecam()
+    freecamActive = not freecamActive
+    if freecamActive then
+        local camPos = Camera.CFrame
+        freecamPart = Instance.new("Part")
+        freecamPart.Size = Vector3.new(1,1,1)
+        freecamPart.Transparency = 1
+        freecamPart.CanCollide = false
+        freecamPart.Anchored = true
+        freecamPart.CFrame = camPos
+        freecamPart.Parent = Workspace
+        Camera.CameraSubject = freecamPart
+    else
+        if freecamPart then freecamPart:Destroy() freecamPart = nil end
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            Camera.CameraSubject = LocalPlayer.Character.Humanoid
+        end
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    if freecamActive and freecamPart then
+        local speed = 2.5
+        local moveDir = Vector3.zero
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir += Camera.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir -= Camera.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir -= Camera.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir += Camera.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.E) then moveDir += Vector3.new(0,1,0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Q) then moveDir -= Vector3.new(0,1,0) end
+
+        freecamPart.CFrame += moveDir * speed
+    end
+end)
+
+-- ==================== TELEPORT TREE ====================
+local function TeleportTree(part, finalPos)
+    if not part or not part:IsA("BasePart") then return end
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    pcall(function()
+        part.CFrame = hrp.CFrame * CFrame.new(0,0,-7)
+        task.wait(0.15)
+        local start = tick()
+        while tick() - start < 0.8 do
+            part.AssemblyLinearVelocity = Vector3.zero
+            part.AssemblyAngularVelocity = Vector3.zero
+            part.CFrame = CFrame.new(finalPos + Vector3.new(0,12,0))
+            RunService.Heartbeat:Wait()
+        end
+    end)
+end
+
+-- Function to refresh teleport buttons
+local function RefreshTeleportButtons()
+    if TeleportSection then
+        TeleportSection:Destroy()  -- Clear old section
+    end
+    TeleportSection = TeleportTab:CreateSection("Saved Locations")
+
+    for _, loc in ipairs(savedTeleports) do
+        TeleportTab:CreateButton({
+            Name = "🚀 " .. loc.Name,
+            Callback = function()
+                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(loc.Position + Vector3.new(0,5,0))
+                    Rayfield:Notify({Title = "Teleported", Content = "To " .. loc.Name, Duration = 2})
+                end
+            end,
+        })
+    end
+end
+
+-- ==================== FARM TAB ====================
+FarmTab:CreateSection("Auto Farm")
+
+FarmTab:CreateToggle({
+    Name = "Tree Teleport (Click on Tree)",
+    CurrentValue = autoTreeTeleport,
+    Flag = "AutoTreeTeleport",
+    Callback = function(Value)
+        autoTreeTeleport = Value
+    end,
+})
+
+FarmTab:CreateButton({
+    Name = "🎯 Save Current Position as Sell Point",
+    Callback = function()
+        if freecamActive then
+            targetTreePos = Camera.CFrame.Position
+        elseif LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then
+            targetTreePos = LocalPlayer.Character.PrimaryPart.Position
+        end
+        Rayfield:Notify({Title = "Saved", Content = "Sell point updated!", Duration = 3})
+    end,
+})
+
+-- ==================== TELEPORT TAB ====================
+TeleportTab:CreateSection("Teleport Controls")
+
+TeleportTab:CreateButton({
+    Name = "➕ Save Current Location",
+    Callback = function()
+        local pos
+        if freecamActive then
+            pos = Camera.CFrame.Position
+        elseif LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            pos = LocalPlayer.Character.HumanoidRootPart.Position
+        end
+
+        if pos then
+            table.insert(savedTeleports, {
+                Name = "📍 Point " .. (#savedTeleports + 1),
+                Position = pos
+            })
+            Rayfield:Notify({Title = "Location Saved", Content = "New point added!", Duration = 3})
+            RefreshTeleportButtons()  -- Refresh list
+        end
+    end,
+})
+
+RefreshTeleportButtons()  -- Initial load
+
+-- ==================== SETTINGS TAB ====================
+SettingsTab:CreateSection("Settings")
+
+SettingsTab:CreateToggle({
+    Name = "F Key Click Teleport",
+    CurrentValue = clickTeleportPlayer,
+    Flag = "FKeyTP",
+    Callback = function(Value)
+        clickTeleportPlayer = Value
+    end,
+})
+
+SettingsTab:CreateToggle({
+    Name = "Freecam (WASD + QE)",
+    CurrentValue = freecamActive,
+    Flag = "FreecamToggle",
+    Callback = function(Value)
+        ToggleFreecam()
+    end,
+})
+
+-- ==================== INPUT ====================
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
+
+    if input.KeyCode == Enum.KeyCode.F and clickTeleportPlayer then
+        local mouse = LocalPlayer:GetMouse()
+        if mouse.Hit and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(mouse.Hit.Position + Vector3.new(0,3,0))
+        end
+    end
+
+    if input.UserInputType == Enum.UserInputType.MouseButton1 and autoTreeTeleport then
+        local finalPos = targetTreePos
+        if not finalPos then
+            for _,loc in pairs(savedTeleports) do
+                if loc.Name:find("Sell") or loc.Name:find("Black") then
+                    finalPos = loc.Position
+                    break
+                end
+            end
+        end
+
+        local mouse = LocalPlayer:GetMouse()
+        if mouse.Target and finalPos then
+            local model = mouse.Target:FindFirstAncestorOfClass("Model") or mouse.Target.Parent
+            if model then
+                local part = model.PrimaryPart or model:FindFirstChild("Trunk") or model:FindFirstChild("Wood") or mouse.Target
+                TeleportTree(part, finalPos)
+            end
+        end
+    end
+end)
+
+Rayfield:Notify({
+    Title = "Success",
+    Content = "Oaklands Helper V6 Loaded with Rayfield",
+    Duration = 5,
+})
