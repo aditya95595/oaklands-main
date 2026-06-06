@@ -223,13 +223,14 @@ FloatingBall.Size = UDim2.new(0, 50, 0, 50)
 FloatingBall.Position = UDim2.new(0.1, 0, 0.4, 0)
 FloatingBall.BackgroundColor3 = Color3.fromRGB(33, 33, 33)
 FloatingBall.Text = "🌲"
+FloatingBall.TextColor3 = Color3.fromRGB(255, 255, 255)
 FloatingBall.TextSize = 22
 FloatingBall.Visible = false
 FloatingBall.ZIndex = 10
 FloatingBall.Parent = ScreenGui
 
 local BallCorner = Instance.new("UICorner")
-BallCorner.CornerRadius = UDim.new(0, 25) -- Makes it a perfect circle
+BallCorner.CornerRadius = UDim.new(0, 25)
 BallCorner.Parent = FloatingBall
 
 local BallStroke = Instance.new("UIStroke")
@@ -237,20 +238,20 @@ BallStroke.Color = Color3.fromRGB(139, 195, 74)
 BallStroke.Thickness = 2
 BallStroke.Parent = FloatingBall
 
--- ==================== DRAGGABLE ENGINE LOGIC ====================
-local function MakeDraggable(dragFrame, dragHandle)
+-- ==================== INDEPENDENT DRAG LOGIC ====================
+local function MakeFrameDraggable(frame, handle)
     local dragging, dragInput, dragStart, startPos
-    dragHandle.InputBegan:Connect(function(input)
+    handle.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
-            startPos = dragFrame.Position
+            startPos = frame.Position
             input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then dragging = false end
             end)
         end
     end)
-    dragHandle.InputChanged:Connect(function(input)
+    handle.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
             dragInput = input
         end
@@ -258,26 +259,28 @@ local function MakeDraggable(dragFrame, dragHandle)
     UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then
             local delta = input.Position - dragStart
-            dragFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
 end
-MakeDraggable(MainFrame, TopBar)
-MakeDraggable(FloatingBall, FloatingBall)
 
--- ==================== FLOATING BALL TOGGLE LOGIC ====================
-local savedMainPos = MainFrame.Position
+MakeFrameDraggable(MainFrame, TopBar)
+MakeFrameDraggable(FloatingBall, FloatingBall)
 
+-- ==================== TOGGLE MECHANICS ====================
 MinimizeBtn.MouseButton1Click:Connect(function()
-    savedMainPos = MainFrame.Position
+    local currentPos = MainFrame.AbsolutePosition
     MainFrame.Visible = false
-    FloatingBall.Position = UDim2.new(0, savedMainPos.X.Offset + 225, 0, savedMainPos.Y.Offset + 135)
+    -- Center the ball relative to where the frame was
+    FloatingBall.Position = UDim2.new(0, currentPos.X + 225, 0, currentPos.Y + 135)
     FloatingBall.Visible = true
 end)
 
 FloatingBall.MouseButton1Click:Connect(function()
+    local ballPos = FloatingBall.AbsolutePosition
     FloatingBall.Visible = false
-    MainFrame.Position = UDim2.new(0, FloatingBall.Position.X.Offset - 225, 0, FloatingBall.Position.Y.Offset - 135)
+    -- Restore the frame position based on the ball's location
+    MainFrame.Position = UDim2.new(0, ballPos.X - 225, 0, ballPos.Y - 135)
     MainFrame.Visible = true
 end)
 
@@ -391,7 +394,7 @@ local function AddToggle(tabName, text, default, callback)
     return toggleFrame
 end
 
--- ==================== INIT CHEAT VISUAL PANELS ====================
+-- ==================== INIT PANELS ====================
 local farmPage = CreateTab("Farm")
 local tpPage = CreateTab("Teleport")
 local settingsPage = CreateTab("Settings")
