@@ -25,9 +25,9 @@ local TeleportSection = nil
 local Window = Rayfield:CreateWindow({
     Name = "🌲 Oaklands Helper V6",
     LoadingTitle = "Oaklands Helper V6",
-    LoadingSubtitle = "by Grok",
+    LoadingSubtitle = "by linux",
     ConfigurationSaving = {
-        Enabled = False,
+        Enabled = True,
         FolderName = "OaklandsHelper",
         FileName = "V6_Config"
     },
@@ -37,7 +37,7 @@ local Window = Rayfield:CreateWindow({
         Subtitle = "Panda Auth System",
         Note = "Key valid for 6 hours\nClick 'Get Key' below 👇",
         FileName = "OaklandsHelperV6_Key",
-        SaveKey = False,
+        SaveKey = True,
         GrabKeyFromSite = true,   -- ← This makes the Get Key button appear
         Key = {"https://pandadevelopment.net/getkey?service=17cc8434-693e-467d-9a36-195a984ad0ef"}
     },
