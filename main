@@ -14,19 +14,17 @@ local clickTeleportPlayer = true
 local freecamActive = false
 local freecamPart = nil
 
--- ==================== SAVED TELEPORTS ====================
 local savedTeleports = {
     {Name = "❄️ Snow Tree", Position = Vector3.new(-7422.5, 1188.6, -3564.2)},
     {Name = "💰 Sell Tree", Position = Vector3.new(-54.8, 35.9, -74.4)},
     {Name = "⬛ Black Zone", Position = Vector3.new(2387.3, -1867.4, 1324.9)}
 }
 
-local TeleportSection = nil  -- Will store reference to update later
+local TeleportSection = nil
 
--- ==================== WINDOW ====================
 local Window = Rayfield:CreateWindow({
     Name = "🌲 Oaklands Helper V6",
-    LoadingTitle = "Oaklands Helper",
+    LoadingTitle = "Oaklands Helper V6",
     LoadingSubtitle = "by Grok",
     ConfigurationSaving = {
         Enabled = true,
@@ -71,60 +69,72 @@ RunService.RenderStepped:Connect(function()
         if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir += Camera.CFrame.RightVector end
         if UserInputService:IsKeyDown(Enum.KeyCode.E) then moveDir += Vector3.new(0,1,0) end
         if UserInputService:IsKeyDown(Enum.KeyCode.Q) then moveDir -= Vector3.new(0,1,0) end
-
         freecamPart.CFrame += moveDir * speed
     end
 end)
 
--- ==================== TELEPORT TREE ====================
+-- ==================== IMPROVED TREE TELEPORT ====================
 local function TeleportTree(part, finalPos)
     if not part or not part:IsA("BasePart") then return end
+    
     local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
 
     pcall(function()
-        part.CFrame = hrp.CFrame * CFrame.new(0,0,-7)
-        task.wait(0.15)
+        -- Claim network ownership (client-side)
+        if part:FindFirstChild("BodyVelocity") or part:FindFirstChild("BodyAngularVelocity") then
+            -- Clear old constraints if any
+        end
+        
+        part.CFrame = hrp.CFrame * CFrame.new(0, 0, -6)
+        task.wait(0.1)
+
+        -- Stronger teleport loop
         local start = tick()
-        while tick() - start < 0.8 do
+        while tick() - start < 1.2 do  -- Increased duration
+            -- Zero out all movement
             part.AssemblyLinearVelocity = Vector3.zero
             part.AssemblyAngularVelocity = Vector3.zero
-            part.CFrame = CFrame.new(finalPos + Vector3.new(0,12,0))
+            part.Velocity = Vector3.zero
+            part.RotVelocity = Vector3.zero
+
+            -- Force position
+            part.CFrame = CFrame.new(finalPos + Vector3.new(0, 12, 0))
+            
+            -- Optional: Small random offset to reduce detection
+            if math.random(1,3) == 1 then
+                part.CFrame += Vector3.new(math.random(-0.5,0.5), 0, math.random(-0.5,0.5))
+            end
+
             RunService.Heartbeat:Wait()
         end
     end)
 end
 
--- Function to refresh teleport buttons
+-- ==================== REFRESH TELEPORTS ====================
 local function RefreshTeleportButtons()
-    if TeleportSection then
-        TeleportSection:Destroy()  -- Clear old section
-    end
+    if TeleportSection then TeleportSection:Destroy() end
     TeleportSection = TeleportTab:CreateSection("Saved Locations")
 
     for _, loc in ipairs(savedTeleports) do
         TeleportTab:CreateButton({
             Name = "🚀 " .. loc.Name,
             Callback = function()
-                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                    LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(loc.Position + Vector3.new(0,5,0))
-                    Rayfield:Notify({Title = "Teleported", Content = "To " .. loc.Name, Duration = 2})
+                local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    hrp.CFrame = CFrame.new(loc.Position + Vector3.new(0,5,0))
                 end
             end,
         })
     end
 end
 
--- ==================== FARM TAB ====================
+-- ==================== TABS ====================
 FarmTab:CreateSection("Auto Farm")
-
 FarmTab:CreateToggle({
     Name = "Tree Teleport (Click on Tree)",
     CurrentValue = autoTreeTeleport,
-    Flag = "AutoTreeTeleport",
-    Callback = function(Value)
-        autoTreeTeleport = Value
-    end,
+    Callback = function(v) autoTreeTeleport = v end
 })
 
 FarmTab:CreateButton({
@@ -139,64 +149,50 @@ FarmTab:CreateButton({
     end,
 })
 
--- ==================== TELEPORT TAB ====================
 TeleportTab:CreateSection("Teleport Controls")
-
 TeleportTab:CreateButton({
     Name = "➕ Save Current Location",
     Callback = function()
-        local pos
-        if freecamActive then
-            pos = Camera.CFrame.Position
-        elseif LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            pos = LocalPlayer.Character.HumanoidRootPart.Position
-        end
-
+        local pos = freecamActive and Camera.CFrame.Position or 
+                   (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.Position)
         if pos then
-            table.insert(savedTeleports, {
-                Name = "📍 Point " .. (#savedTeleports + 1),
-                Position = pos
-            })
-            Rayfield:Notify({Title = "Location Saved", Content = "New point added!", Duration = 3})
-            RefreshTeleportButtons()  -- Refresh list
+            table.insert(savedTeleports, {Name = "📍 Point " .. (#savedTeleports + 1), Position = pos})
+            RefreshTeleportButtons()
+            Rayfield:Notify({Title = "Saved", Content = "New location added!", Duration = 3})
         end
     end,
 })
 
-RefreshTeleportButtons()  -- Initial load
+RefreshTeleportButtons()
 
--- ==================== SETTINGS TAB ====================
 SettingsTab:CreateSection("Settings")
-
 SettingsTab:CreateToggle({
     Name = "F Key Click Teleport",
     CurrentValue = clickTeleportPlayer,
-    Flag = "FKeyTP",
-    Callback = function(Value)
-        clickTeleportPlayer = Value
-    end,
+    Callback = function(v) clickTeleportPlayer = v end
 })
-
 SettingsTab:CreateToggle({
     Name = "Freecam (WASD + QE)",
     CurrentValue = freecamActive,
-    Flag = "FreecamToggle",
-    Callback = function(Value)
-        ToggleFreecam()
-    end,
+    Callback = function(v) ToggleFreecam() end
 })
 
--- ==================== INPUT ====================
+-- ==================== INPUT (Client-Side Only) ====================
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
 
+    -- F Key Teleport
     if input.KeyCode == Enum.KeyCode.F and clickTeleportPlayer then
-        local mouse = LocalPlayer:GetMouse()
-        if mouse.Hit and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(mouse.Hit.Position + Vector3.new(0,3,0))
+        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local mouse = LocalPlayer:GetMouse()
+            if mouse and mouse.Hit then
+                hrp.CFrame = CFrame.new(mouse.Hit.Position + Vector3.new(0, 3, 0))
+            end
         end
     end
 
+    -- Improved Tree Teleport
     if input.UserInputType == Enum.UserInputType.MouseButton1 and autoTreeTeleport then
         local finalPos = targetTreePos
         if not finalPos then
@@ -208,19 +204,22 @@ UserInputService.InputBegan:Connect(function(input, gp)
             end
         end
 
-        local mouse = LocalPlayer:GetMouse()
-        if mouse.Target and finalPos then
-            local model = mouse.Target:FindFirstAncestorOfClass("Model") or mouse.Target.Parent
-            if model then
-                local part = model.PrimaryPart or model:FindFirstChild("Trunk") or model:FindFirstChild("Wood") or mouse.Target
-                TeleportTree(part, finalPos)
+        if finalPos then
+            local mouse = LocalPlayer:GetMouse()
+            if mouse.Target then
+                local model = mouse.Target:FindFirstAncestorOfClass("Model") or mouse.Target.Parent
+                if model then
+                    local part = model.PrimaryPart 
+                        or model:FindFirstChild("Trunk") 
+                        or model:FindFirstChild("Wood") 
+                        or model:FindFirstChild("Log")
+                        or mouse.Target
+                    
+                    TeleportTree(part, finalPos)
+                end
             end
         end
     end
 end)
 
-Rayfield:Notify({
-    Title = "Success",
-    Content = "Oaklands Helper V6 Loaded with Rayfield",
-    Duration = 5,
-})
+Rayfield:Notify({Title = "Loaded", Content = "Oaklands Helper V6 - Improved Tree TP", Duration = 5})
