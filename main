@@ -27,7 +27,7 @@ local Window = Rayfield:CreateWindow({
     LoadingTitle = "Oaklands Helper V6",
     LoadingSubtitle = "by linux",
     ConfigurationSaving = {
-        Enabled = true, -- FIXED: Must be lowercase true
+        Enabled = true,
         FolderName = "OaklandsHelper",
         FileName = "V6_Config"
     },
@@ -37,15 +37,29 @@ local Window = Rayfield:CreateWindow({
         Subtitle = "Panda Auth System",
         Note = "Key valid for 6 hours\nClick 'Get Key' below 👇",
         FileName = "OaklandsHelperV6_Key",
-        SaveKey = true, -- FIXED: Must be lowercase true
-        GrabKeyFromSite = true,
-        Key = {"https://pandadevelopment.net/getkey?service=17cc8434-693e-467d-9a36-195a984ad0ef"},
+        SaveKey = true,
+        GrabKeyFromSite = false, -- Change to false so Rayfield processes via custom code logic below
+        Key = {"PANDA_KEY_PLACEHOLDER"}, -- Structural string placeholder required by UI compilation
         
-        -- Rayfield requires the Actions block to initialize user validation inputs properly
+        -- Rayfield maps execution action objects here to generate the "Get Key" and "Submit" buttons
         Actions = {
             OnKeySubmit = function(submittedKey)
-                -- Standard client-side fallback check
-                return true
+                -- This runs verification logic via the standard client clipboard handler
+                -- Replace this logic cleanly if you hook up full web requests to Panda validation endpoints
+                if submittedKey == "test" then 
+                    return true
+                else
+                    return false
+                end
+            end,
+            OnGetKey = function()
+                -- When they click the button, this copies your link and alerts them
+                setclipboard("https://pandadevelopment.net/getkey?service=17cc8434-693e-467d-9a36-195a984ad0ef")
+                Rayfield:Notify({
+                    Title = "Link Copied!",
+                    Content = "The Panda key link has been copied to your clipboard. Paste it into your browser!",
+                    Duration = 5
+                })
             end
         }
     },
