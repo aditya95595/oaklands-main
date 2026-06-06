@@ -35,10 +35,10 @@ local Window = Rayfield:CreateWindow({
     KeySettings = {
         Title = "Oaklands Helper V6",
         Subtitle = "Panda Auth System",
-        Note = "Key valid for 6 hours\nClick the link to get key",
+        Note = "Key valid for 6 hours\nClick 'Get Key' below 👇",
         FileName = "OaklandsHelperV6_Key",
         SaveKey = true,
-        GrabKeyFromSite = false,
+        GrabKeyFromSite = true,   -- ← This makes the Get Key button appear
         Key = {"https://pandadevelopment.net/getkey?service=17cc8434-693e-467d-9a36-195a984ad0ef"}
     },
 })
