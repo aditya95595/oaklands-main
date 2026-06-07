@@ -61,7 +61,44 @@ local function InitializePlotLogic()
 end
 task.spawn(InitializePlotLogic)
 
--- ==================== CORE PHYSICS UTILITIES ====================
+-- ==================== CORE ACTIONS ====================
+local function TeleportPlayerToPlot()
+    local chr = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if chr and currentFloor then
+        oldCFrame = chr.CFrame
+        chr.CFrame = currentFloor.CFrame + Vector3.new(0,35,0)
+    end
+end
+
+local function TeleportPlayerBack()
+    local chr = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if chr and oldCFrame then
+        chr.CFrame = oldCFrame
+    end
+end
+
+local function TeleportHoveredItem()
+    local part = LocalPlayer:GetMouse().Target
+    if part and not part.Anchored and currentFloor then
+        local model = part:FindFirstAncestorWhichIsA("Model")
+        if model and tostring(model.Parent) == "LooseItems" then
+            model.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
+            local root = model:FindFirstChildWhichIsA("BasePart") or model.PrimaryPart
+
+            for i = 0, 8, 1 do 
+                task.wait()
+                model:PivotTo(currentFloor.CFrame + Vector3.new(0,20,0))
+                local vel = Vector3.new(math.random(-8,8), math.random(3,12), math.random(-8,8))
+                if root then root.AssemblyLinearVelocity = vel end
+            end
+
+            LocalPlayer:RequestStreamAroundAsync((currentFloor.CFrame + Vector3.new(0,20,0)).Position, 30)
+            task.wait(0.25)
+            model.ModelStreamingMode = Enum.ModelStreamingMode.Default
+        end
+    end
+end
+
 local function ToggleFreecam()
     freecamActive = not freecamActive
     if freecamActive then
@@ -98,7 +135,6 @@ end)
 
 local function TeleportTree(part, finalPos)
     if not part or not part:IsA("BasePart") then return end
-    
     pcall(function()
         part.Anchored = false
         part.AssemblyLinearVelocity = Vector3.zero
@@ -427,17 +463,33 @@ local function AddToggle(tabName, text, default, callback)
     return toggleFrame
 end
 
-local function AddDescriptionLabel(tabName, text)
-    local lbl = Instance.new("TextLabel")
-    lbl.Size = UDim2.new(1, -10, 0, 20)
-    lbl.BackgroundTransparency = 1
-    lbl.Text = text
-    lbl.TextColor3 = Color3.fromRGB(180, 180, 180)
-    lbl.TextSize = 13
-    lbl.Font = Enum.Font.SourceSansItalic
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
-    lbl.Parent = tabs[tabName].page
-    return lbl
+local function AddDescriptionLabel(tabName, boldTitle, descText)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, -10, 0, 38)
+    frame.BackgroundTransparency = 1
+    frame.Parent = tabs[tabName].page
+
+    local titleLbl = Instance.new("TextLabel")
+    titleLbl.Size = UDim2.new(1, 0, 0, 16)
+    titleLbl.BackgroundTransparency = 1
+    titleLbl.Text = boldTitle
+    titleLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLbl.TextSize = 13
+    titleLbl.Font = Enum.Font.SourceSansBold
+    titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+    titleLbl.Parent = frame
+
+    local descLbl = Instance.new("TextLabel")
+    descLbl.Size = UDim2.new(1, 0, 0, 18)
+    descLbl.Position = UDim2.new(0, 0, 0, 16)
+    descLbl.BackgroundTransparency = 1
+    descLbl.Text = descText
+    descLbl.TextColor3 = Color3.fromRGB(170, 170, 170)
+    descLbl.TextSize = 12
+    descLbl.Font = Enum.Font.SourceSansItalic
+    descLbl.TextXAlignment = Enum.TextXAlignment.Left
+    descLbl.Parent = frame
+    return frame
 end
 
 -- ==================== INIT PANELS ====================
@@ -457,26 +509,23 @@ AddButton("Farm", "🎯 Save Current Position as Sell Point", function()
     end
 end)
 
--- Setup Plot Utilities Panel Controls
-AddSection("Plot Utilities", "Plot Actions")
-AddButton("Plot Utilities", "🏠 Teleport to Land Property", function()
-    local chr = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if chr and currentFloor then
-        oldCFrame = chr.CFrame
-        chr.CFrame = currentFloor.CFrame + Vector3.new(0,35,0)
-    end
+-- Setup Plot Utilities Panel Controls (With Action Buttons)
+AddSection("Plot Utilities", "Interactive Actions")
+AddButton("Plot Utilities", "🏠 Teleport Me to My Plot", function()
+    TeleportPlayerToPlot()
 end)
-AddButton("Plot Utilities", "↩️ Return to Last Position", function()
-    local chr = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if chr and oldCFrame then
-        chr.CFrame = oldCFrame
-    end
+AddButton("Plot Utilities", "↩️ Teleport Me to Previous Position", function()
+    TeleportPlayerBack()
+end)
+AddButton("Plot Utilities", "📦 Teleport Item Under Mouse to Plot", function()
+    TeleportHoveredItem()
 end)
 
+-- Setup Plot Utilities Panel Keybind Descriptions Guide
 AddSection("Plot Utilities", "Keybinds Guide")
-AddDescriptionLabel("Plot Utilities", "• [" .. getgenv().ItemTeleportKeybind.Name .. "] - Teleport item under mouse to your plot")
-AddDescriptionLabel("Plot Utilities", "• [" .. getgenv().TeleportKeybind.Name .. "] - Instant teleport your avatar to your plot")
-AddDescriptionLabel("Plot Utilities", "• [" .. getgenv().TeleportKeybindBack.Name .. "] - Teleport back to where you were before")
+AddDescriptionLabel("Plot Utilities", "• Keybind [" .. getgenv().ItemTeleportKeybind.Name .. "]: Teleport Loose Item", "Hover your mouse cursor cleanly over any cut unanchored log/item and tap this button to warp it straight to your land plot.")
+AddDescriptionLabel("Plot Utilities", "• Keybind [" .. getgenv().TeleportKeybind.Name .. "]: Warp Character to Plot", "Instantly teleports your avatar directly above your property floor layer, saving your past coordinate vector history.")
+AddDescriptionLabel("Plot Utilities", "• Keybind [" .. getgenv().TeleportKeybindBack.Name .. "]: Safe Return Warp", "Instantly routes your avatar configuration step backwards back to the coordinates you safely occupied prior to running your Plot teleport.")
 
 -- Setup Teleport Panel Controls
 AddSection("Teleport", "Teleport Controls")
@@ -572,36 +621,11 @@ UserInputService.InputBegan:Connect(function(input, gp)
     -- Integrated Plot Utility Logic Hooks
     if currentPlot and currentFloor then
         if input.KeyCode == getgenv().ItemTeleportKeybind then
-            local part = LocalPlayer:GetMouse().Target
-            if part and not part.Anchored then
-                local model = part:FindFirstAncestorWhichIsA("Model")
-                if model and tostring(model.Parent) == "LooseItems" then
-                    model.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
-                    local root = model:FindFirstChildWhichIsA("BasePart") or model.PrimaryPart
-
-                    for i = 0, 8, 1 do 
-                        task.wait()
-                        model:PivotTo(currentFloor.CFrame + Vector3.new(0,20,0))
-                        local vel = Vector3.new(math.random(-8,8), math.random(3,12), math.random(-8,8))
-                        if root then root.AssemblyLinearVelocity = vel end
-                    end
-
-                    LocalPlayer:RequestStreamAroundAsync((currentFloor.CFrame + Vector3.new(0,20,0)).Position, 30)
-                    task.wait(0.25)
-                    model.ModelStreamingMode = Enum.ModelStreamingMode.Default
-                end
-            end
+            TeleportHoveredItem()
         elseif input.KeyCode == getgenv().TeleportKeybind then
-            local chr = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if chr then
-                oldCFrame = chr.CFrame
-                chr.CFrame = currentFloor.CFrame + Vector3.new(0,35,0)
-            end
+            TeleportPlayerToPlot()
         elseif input.KeyCode == getgenv().TeleportKeybindBack then
-            local chr = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if chr and oldCFrame then
-                chr.CFrame = oldCFrame
-            end
+            TeleportPlayerBack()
         end
     end
     
