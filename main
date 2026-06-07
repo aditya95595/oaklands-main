@@ -6,6 +6,11 @@ local TweenService = game:GetService("TweenService")
 local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
+-- ==================== GLOBAL CONFIG & KEYBINDS ====================
+getgenv().ItemTeleportKeybind = Enum.KeyCode.T   -- Teleport hovered item to plot
+getgenv().TeleportKeybind = Enum.KeyCode.Y       -- Teleport player to plot
+getgenv().TeleportKeybindBack = Enum.KeyCode.U   -- Teleport player back to original spot
+
 -- ==================== STATE VARIABLES ====================
 local targetTreePos = nil
 local autoTreeTeleport = false
@@ -13,13 +18,50 @@ local clickTeleportPlayer = true
 local freecamActive = false
 local freecamPart = nil
 
+local currentPlot = nil 
+local currentFloor = nil
+local oldCFrame = nil
+
 local savedTeleports = {
     {Name = "❄️ Snow Tree", Position = Vector3.new(-7422.5, 1188.6, -3564.2)},
     {Name = "💰 Sell Tree", Position = Vector3.new(-54.8, 35.9, -74.4)},
     {Name = "⬛ Black Zone", Position = Vector3.new(2387.3, -1867.4, 1324.9)}
 }
 
--- ==================== CORE FUNCTIONS ====================
+-- ==================== AUTOMATIC PLOT RESOLVER ====================
+local function InitializePlotLogic()
+    local props = Workspace:FindFirstChild("World") and Workspace.World:FindFirstChild("Property")
+    if not props then return end
+
+    local function getPlot()
+        for _, part in pairs(props:GetDescendants()) do
+            if part.ClassName == "ObjectValue" and tostring(part.Value) == tostring(LocalPlayer) then
+                currentPlot = part.Parent
+            end
+        end
+    end
+
+    while not currentPlot do 
+        task.wait(0.5)
+        getPlot()
+    end
+
+    local function getFloor()
+        for _, part in pairs(currentPlot:GetDescendants()) do
+            if part.Name == "PropertyFloor" and tostring(part.Parent) == "GrassFolder" then
+                currentFloor = part
+            end
+        end
+    end
+
+    while not currentFloor and currentPlot do 
+        task.wait(0.5)
+        getFloor()
+    end
+end
+task.spawn(InitializePlotLogic)
+
+-- ==================== CORE PHYSICS UTILITIES ====================
 local function ToggleFreecam()
     freecamActive = not freecamActive
     if freecamActive then
@@ -58,25 +100,16 @@ local function TeleportTree(part, finalPos)
     if not part or not part:IsA("BasePart") then return end
     
     pcall(function()
-        -- Ensure the part isn't physically anchored by standard property flags
         part.Anchored = false
-        
-        -- Zero out any backlogged structural forces
         part.AssemblyLinearVelocity = Vector3.zero
         part.AssemblyAngularVelocity = Vector3.zero
-        
-        -- Perform a single smooth, unanchored translation frame rather than a continuous frame freeze.
-        -- This changes the coordinates instantly but releases physics ownership back to the server immediately
-        -- so the game's selling drop pads can detect and pull the item.
         part.CFrame = CFrame.new(finalPos + Vector3.new(0, 3, 0))
-        
-        -- Brief physics push downward to stimulate touch triggers on the sell floor
         task.wait(0.01)
         part.AssemblyLinearVelocity = Vector3.new(0, -10, 0)
     end)
 end
 
--- ==================== CONFIGURABLE MANUAL KEY ====================
+-- ==================== CUSTOM PASS KEY ====================
 local CUSTOM_PASS_KEY = "OaklandsV6" 
 
 -- ==================== CUSTOM UI BUILDER ====================
@@ -116,7 +149,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(0, 300, 1, 0)
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "🌲 Oaklands Helper V6"
+Title.Text = "🌲 Adish Hub V1.0"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 18
 Title.Font = Enum.Font.SourceSansBold
@@ -394,8 +427,22 @@ local function AddToggle(tabName, text, default, callback)
     return toggleFrame
 end
 
+local function AddDescriptionLabel(tabName, text)
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -10, 0, 20)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = text
+    lbl.TextColor3 = Color3.fromRGB(180, 180, 180)
+    lbl.TextSize = 13
+    lbl.Font = Enum.Font.SourceSansItalic
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = tabs[tabName].page
+    return lbl
+end
+
 -- ==================== INIT PANELS ====================
 local farmPage = CreateTab("Farm")
+local plotPage = CreateTab("Plot Utilities")
 local tpPage = CreateTab("Teleport")
 local settingsPage = CreateTab("Settings")
 
@@ -409,6 +456,27 @@ AddButton("Farm", "🎯 Save Current Position as Sell Point", function()
         targetTreePos = LocalPlayer.Character.PrimaryPart.Position
     end
 end)
+
+-- Setup Plot Utilities Panel Controls
+AddSection("Plot Utilities", "Plot Actions")
+AddButton("Plot Utilities", "🏠 Teleport to Land Property", function()
+    local chr = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if chr and currentFloor then
+        oldCFrame = chr.CFrame
+        chr.CFrame = currentFloor.CFrame + Vector3.new(0,35,0)
+    end
+end)
+AddButton("Plot Utilities", "↩️ Return to Last Position", function()
+    local chr = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if chr and oldCFrame then
+        chr.CFrame = oldCFrame
+    end
+end)
+
+AddSection("Plot Utilities", "Keybinds Guide")
+AddDescriptionLabel("Plot Utilities", "• [" .. getgenv().ItemTeleportKeybind.Name .. "] - Teleport item under mouse to your plot")
+AddDescriptionLabel("Plot Utilities", "• [" .. getgenv().TeleportKeybind.Name .. "] - Instant teleport your avatar to your plot")
+AddDescriptionLabel("Plot Utilities", "• [" .. getgenv().TeleportKeybindBack.Name .. "] - Teleport back to where you were before")
 
 -- Setup Teleport Panel Controls
 AddSection("Teleport", "Teleport Controls")
@@ -490,6 +558,7 @@ end)
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
     
+    -- Original UI F-Key Client Teleportation 
     if input.KeyCode == Enum.KeyCode.F and clickTeleportPlayer then
         local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         if hrp then
@@ -500,6 +569,43 @@ UserInputService.InputBegan:Connect(function(input, gp)
         end
     end
     
+    -- Integrated Plot Utility Logic Hooks
+    if currentPlot and currentFloor then
+        if input.KeyCode == getgenv().ItemTeleportKeybind then
+            local part = LocalPlayer:GetMouse().Target
+            if part and not part.Anchored then
+                local model = part:FindFirstAncestorWhichIsA("Model")
+                if model and tostring(model.Parent) == "LooseItems" then
+                    model.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
+                    local root = model:FindFirstChildWhichIsA("BasePart") or model.PrimaryPart
+
+                    for i = 0, 8, 1 do 
+                        task.wait()
+                        model:PivotTo(currentFloor.CFrame + Vector3.new(0,20,0))
+                        local vel = Vector3.new(math.random(-8,8), math.random(3,12), math.random(-8,8))
+                        if root then root.AssemblyLinearVelocity = vel end
+                    end
+
+                    LocalPlayer:RequestStreamAroundAsync((currentFloor.CFrame + Vector3.new(0,20,0)).Position, 30)
+                    task.wait(0.25)
+                    model.ModelStreamingMode = Enum.ModelStreamingMode.Default
+                end
+            end
+        elseif input.KeyCode == getgenv().TeleportKeybind then
+            local chr = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if chr then
+                oldCFrame = chr.CFrame
+                chr.CFrame = currentFloor.CFrame + Vector3.new(0,35,0)
+            end
+        elseif input.KeyCode == getgenv().TeleportKeybindBack then
+            local chr = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if chr and oldCFrame then
+                chr.CFrame = oldCFrame
+            end
+        end
+    end
+    
+    -- Wood Translation Click Hook
     if input.UserInputType == Enum.UserInputType.MouseButton1 and autoTreeTeleport then
         local finalPos = targetTreePos
         
